@@ -14,54 +14,21 @@ T1 = ureal('T1', T10, 'Percentage', 1);
 T2 = ureal('T2', T20, 'Percentage', 1);
 
 P = tf(K, [(T1*T2), (T1+T2),1]);
+omega = logspace(-2,4,1000);
 
 %% II) Volba vahove funkce W1 
-
-% !!!!!!!!!!!!!!!!!! NA TOHLE JE POTREBA SE PODIVAT A NEBO ZEPTAT
-% KONIGS!!!!!!!!!!!
-
-K_i = 0.0943211712628501; % Parametry ziskane pomoci toolu Control system tuner
-K_p = 0.0708411782367862;
-
-C_0 = tf([K_p, K_i],[1, 0]); % Prenos PI regulatoru s nalezenymi parametry
-L_0 = C_0*P_0; % Prenos otevrene smycky
-S_0 = 1/(1+L_0); % Citlivostni funkce
-T_0 = L_0/(1+L_0); % Komplementarni citlivostni funkce
-
-omega = logspace(-2, 4,1000);
-omega_1 = logspace(-4,4,1000);
-W_1 = minreal(tf([1 4], [8, 0]));
-
-S0_norma = norm(S_0, 'inf');
-W1_S0_norma = norm(W_1*S_0,'inf');
-
-% Sirka pasma
-sirka_pasma_S0 = bandwidth(S_0); 
-sirka_pasma_W1_S0 = bandwidth(W_1*S_0);
-
-freqresp_S0 = abs(squeeze(freqresp(S_0, omega)));
-freqresp_W1_S0 = abs(squeeze(freqresp(W_1*S_0, omega)));
-
-figure;
-semilogx(omega, freqresp_S0); 
-xlabel('\omega[rad/s]');
-ylabel('|S_0(j \omega)|');
-grid on;
-
-figure;
-semilogx(omega_1, freqresp_W1_S0);
-xlabel('\omega[rad/s]');
-ylabel('|W_1(j \omega) * S_0(j \omega)|');
-grid on;
-
-figure;
-semilogx(omega, 20*log10(freqresp_W1_S0), 'b');
-hold on;
-grid on;
-semilogx(omega, 20*log10(freqresp_S0), 'r')
-xlabel('\omega[rad/s]');
-ylabel('[db]');
-legend('20log(|W_1(j \omega) * S_0(j \omega)|)', '20log(|S_0(j \omega)|)');
+close all
+max = 8;
+w_bw = 0.5;
+crossover_freq = 0.1;
+W_1 = inv(makeweight(0.01, crossover_freq, max^w_bw));
+figure
+bodemag(W_1)
+grid on
+mag2db(abs(freqresp(W_1,0.5)))
+mag2db(abs(freqresp(W_1,100)))
+[b, a] = ss2tf(W_1.A, W_1.B, W_1.C, W_1.D);
+W_1 = tf(b, a);
 
 %% III) Volba vahove funkce W2
 K_for_W2 = 1.01*K0;
@@ -115,7 +82,8 @@ freqresp_P10_imag = imag(squeeze(freqresp(P_10, omega)));
 freqresp_P10_real = real(squeeze(freqresp(P_10, omega)));
 
 choosen_omega = [1, 100, 150, 200, 250, 300, 350, 400, 450, 500];
-
+figure
+plot(real(squeeze(freqresp(W2, omega))), imag(squeeze(freqresp(W2, omega))))
 % Hodnoty pro jednotlive frekvence
 figure 
 plot(freqresp_P0_real, freqresp_P0_imag, 'black');
@@ -141,8 +109,18 @@ grid on;
 
 
 %% Navrh regulatoru
+%% I) Navrh regulatoru pomoci smiseneho problemu citlivostnich funkci
+[K, CL, GAM, INFO] = mixsyn(P, W_1, [], W2); % mixsyn funkce minimalizuje Hinf normu uzavreneho systemu, brano ze cviceni
+[num, den] = ss2tf(K.a, K.b, K.c, K.d);
+C = minreal(tf(num, den));
+L = C*P;
+S = 1/(1+L);
+T = L/(1+L);
+
+robust_condition_norm = norm(abs(squeeze(freqresp(W_1*S, omega)))+abs(squeeze(freqresp(W2*T, omega))), 'inf');
+
 %% II) Navrh regulatoru pomoci Control system tuner
-K_p = 0.0708411782367862;
+K_p = 0.0708411782367862; % Nalezeno pomoci 
 K_i = 0.0943211712628501;
 
 C_cst = tf([K_p, K_i],[1, 0]);
@@ -150,9 +128,19 @@ L0_cst = C_cst * P;
 S0 = 1/(1+L0_cst);
 T0 = L0_cst/(1+L0_cst);
 
+robust_condition_norm_reg_2 = norm(abs(squeeze(freqresp(W_1*S0, omega)))+abs(squeeze(freqresp(W2*T0, omega))), 'inf');
 
+%% III) Srovnani regulatoru
+figure 
+step(T)
+hold on
+step(T0)
+xlabel('cas[s]');
+ylabel('amplituda');
+legend('reg. - smiseny problemu citl. funkci ','reg. - PI');
+grid on;
 
-function circle( s,r )
-    alpha = 0:0.01:2*pi;
-    plot(real(s)+r*cos(alpha),imag(s)+r*sin(alpha), 'blue')
-end
+%% IV) 
+figure
+
+[re, im] = nyquist(L0_cst)
