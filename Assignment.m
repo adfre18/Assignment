@@ -24,12 +24,11 @@ K_i = 0.0943211712628501; % Parametry ziskane pomoci toolu Control system tuner
 K_p = 0.0708411782367862;
 
 C_0 = tf([K_p, K_i],[1, 0]); % Prenos PI regulatoru s nalezenymi parametry
-
 L_0 = C_0*P_0; % Prenos otevrene smycky
 S_0 = 1/(1+L_0); % Citlivostni funkce
 T_0 = L_0/(1+L_0); % Komplementarni citlivostni funkce
 
-omega = logspace(-2,4,1000);
+omega = logspace(-2, 4,1000);
 omega_1 = logspace(-4,4,1000);
 W_1 = minreal(tf([1 4], [8, 0]));
 
@@ -70,7 +69,7 @@ T1_for_W2 = 0.99*T10;
 T2_for_W2 = 0.99*T20;
 
 %Nejvetsi mozny prenos (okraj kruznice)
-P_for_W2 = tf(K_for_W2, [(T1_for_W2*T2_for_W2), (T1_for_W2+T2_for_W2),1]);
+P_for_W2 = minreal(tf(K_for_W2, [(T1_for_W2*T2_for_W2), (T1_for_W2+T2_for_W2),1]));
 % Vypocet nejvetsi mozne W2
 W2 = minreal((P_for_W2/P_0)-1);
 % Kontrola normy pro robustni stabilitu
@@ -89,6 +88,7 @@ grid on;
 
 
 %% Nyquist pro 10 prenosu
+close all
 N = 10;
 P_10 = usample(P, N);
 W = -180:0.001:180;
@@ -100,6 +100,45 @@ grid on;
 nyquist(P_0, 'b');
 legend('P(s)', 'P_0 (s)');
 
+figure;
+bodemag(P_10, 'r');
+hold on;
+grid on;
+bodemag(P_0, 'b');
+xlabel('\omega[rad/s]');
+legend('P(s)', 'P_{0} (s)');
+
+freqresp_P0_imag = imag(squeeze(freqresp(P_0, omega)));
+freqresp_P0_real = real(squeeze(freqresp(P_0, omega)));
+
+freqresp_P10_imag = imag(squeeze(freqresp(P_10, omega)));
+freqresp_P10_real = real(squeeze(freqresp(P_10, omega)));
+
+choosen_omega = [1, 100, 150, 200, 250, 300, 350, 400, 450, 500];
+
+% Hodnoty pro jednotlive frekvence
+figure 
+plot(freqresp_P0_real, freqresp_P0_imag, 'black');
+hold on
+plot(freqresp_P10_real(choosen_omega, :), freqresp_P10_imag(choosen_omega, :), 'red*')
+hold on
+plot(freqresp_P0_real(choosen_omega, :), freqresp_P0_imag(choosen_omega, :), 'blue*')
+
+% Kruznice znacici nestrukturalni neurcitost
+radius = abs(squeeze(freqresp(W2*P_0, omega)));
+freqresp_P0 = squeeze(freqresp(P_0, omega));
+theta = 0:0.01:2*pi;
+for i = 1:length(choosen_omega)
+    xunit = real(freqresp_P0(choosen_omega(i)))+radius(choosen_omega(i))*cos(theta);
+    yunit = imag(freqresp_P0(choosen_omega(i)))+radius(choosen_omega(i))*sin(theta);
+    plot(xunit, yunit, 'blue')
+    hold on
+end
+xlabel('reP(j\omega)');
+ylabel('imP(j\omega)');
+legend('frekvencni odezva P_0 (j\omega)');
+grid on;
+
 
 %% Navrh regulatoru
 %% II) Navrh regulatoru pomoci Control system tuner
@@ -110,3 +149,10 @@ C_cst = tf([K_p, K_i],[1, 0]);
 L0_cst = C_cst * P;
 S0 = 1/(1+L0_cst);
 T0 = L0_cst/(1+L0_cst);
+
+
+
+function circle( s,r )
+    alpha = 0:0.01:2*pi;
+    plot(real(s)+r*cos(alpha),imag(s)+r*sin(alpha), 'blue')
+end
