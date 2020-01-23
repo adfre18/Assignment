@@ -22,7 +22,6 @@ S_0 = minreal(1/(1 + P_0));
 T_0 = minreal(L_0 / (1 + L_0));
 
 %% II) Volba vahove funkce W1 
-close all
 max = 8;
 w_bw = 0.5;
 crossover_freq = 0.1;
@@ -60,7 +59,6 @@ grid on;
 
 
 %% Nyquist pro 10 prenosu
-close all
 N = 10;
 P_10 = usample(P, N);
 W = -180:0.001:180;
@@ -147,13 +145,12 @@ legend('Reg. - smiseny problemu citl. funkci ','Reg. - PI', 'Nerizeny system');
 grid on;
 
 %% IV) 
-close all
 transfer_f_1 = 1 + minreal(C_cst * P_0);
 pole(transfer_f_1)
 figure
 pzmap(transfer_f_1)
 grid on
-transfer_f_2 = minreal(C_cst * P_0)
+transfer_f_2 = minreal(C_cst * P_0);
 figure
 
 pzmap(transfer_f_2)
