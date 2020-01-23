@@ -184,8 +184,9 @@ figure
 % Figura sledovani rampy
 step(1/s, 30)
 hold on
-step(1/s*T_updated, 30)
 step(1/s*closed, 30)
+step(1/s*T_updated, 30)
+
 xlabel('cas[s]');
 ylabel('amplituda');
 legend('Referencni signal','Puvodni PI regulator','Upraveny PI regulator');
