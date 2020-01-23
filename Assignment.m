@@ -14,7 +14,12 @@ T1 = ureal('T1', T10, 'Percentage', 1);
 T2 = ureal('T2', T20, 'Percentage', 1);
 
 P = tf(K, [(T1*T2), (T1+T2),1]);
+
 omega = logspace(-2,4,1000);
+C_0 = 1; 
+L_0 = minreal(C_0 * P_0);
+S_0 = minreal(1/(1 + P_0));
+T_0 = minreal(L_0 / (1 + L_0));
 
 %% II) Volba vahove funkce W1 
 close all
@@ -135,12 +140,71 @@ figure
 step(T)
 hold on
 step(T0)
+step(P_0/(1+P_0))
 xlabel('cas[s]');
 ylabel('amplituda');
-legend('reg. - smiseny problemu citl. funkci ','reg. - PI');
+legend('Reg. - smiseny problemu citl. funkci ','Reg. - PI', 'Nerizeny system');
 grid on;
 
 %% IV) 
+close all
+transfer_f_1 = 1 + minreal(C_cst * P_0);
+pole(transfer_f_1)
+figure
+pzmap(transfer_f_1)
+grid on
+transfer_f_2 = minreal(C_cst * P_0)
 figure
 
-[re, im] = nyquist(L0_cst)
+pzmap(transfer_f_2)
+grid on
+zero(C_cst)
+zero(P_0)
+pole(C_cst)
+pole(P_0)
+
+figure
+
+nyquist(L0_cst)
+legend('C(s)P(s)');
+grid on
+
+%% 2x mensi chyba
+% Upraveny regulator
+K_i_updated = 0.188691; % Ziskane vypoctem na papir, odvozeni v dokumentaci
+C_updated = tf([K_p, K_i_updated],[1, 0]);
+L_updated = C_updated * P_0;
+S_updated = 1/(1+L_updated);
+T_updated = L_updated/(1+L_updated);
+
+% Puvodni regulator s nominalnim prenosem
+closed = (C_cst*P_0)/(1+C_cst*P_0);
+s = zpk('s');
+figure
+% Figura sledovani rampy
+step(1/s, 30)
+hold on
+step(1/s*T_updated, 30)
+step(1/s*closed, 30)
+xlabel('cas[s]');
+ylabel('amplituda');
+legend('Referencni signal','Puvodni PI regulator','Upraveny PI regulator');
+grid on;
+figure
+t = 0:0.1:30;
+plot(error)
+xlabel('cas[s]');
+ylabel('odchylka');
+legend('Puvodni PI regulator','Upraveny PI regulator');
+grid on;
+
+robust_condition_updated = abs(squeeze(freqresp(W_1 * S_updated, omega))) + abs(squeeze(freqresp(W2 * T_updated, omega)));
+
+omega = logspace(-2,4,1000);
+figure;
+semilogx(omega, abs(squeeze(freqresp(W_1*S0, omega)))+abs(squeeze(freqresp(W2*T0, omega))));
+hold on;
+semilogx(omega, robust_condition_updated);
+xlabel('\omega[rad/s]');
+legend('Puvodni PI regulator','Upraveny PI regulator');
+grid on;
